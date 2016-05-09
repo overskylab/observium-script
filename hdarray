@@ -1,0 +1,91 @@
+#!/bin/bash
+
+echo '<<<hdarray>>>'
+################## General LSI Controllers ##############
+############## LSI 9260-8i with megacli tested ##############
+
+if [ -a /usr/sbin/MegaCli ]
+then
+  #RAID=/tmp/lsi.$$
+
+  #TODO figure out how to get controller status
+  CTRLSTAT=No
+  #CTRL_RES="$(/usr/sbin/MegaCli -AdpAllInfo -aALL -NoLog < /dev/null | grep "HW Configuration" )"
+  for i in `seq 3 8`;
+  do
+  	RES_TEMP="$(/usr/sbin/MegaCli -AdpAllInfo -aALL -NoLog < /dev/null | egrep -A $i "HW Configuration")"
+  	if [ $i -eq 3 ] ; then
+		BBU_STATUS="$(echo $RES_TEMP | tail -l | cut -d \: -f3)"
+	elif [ $i -eq 4 ] ; then
+		ALARM_STATUS="$(echo $RES_TEMP | tail -l | cut -d \: -f4)"
+	elif [ $i -eq 5 ] ; then
+		NVRAM_STATUS="$(echo $RES_TEMP | tail -l | cut -d \: -f5)"
+	elif [ $i -eq 6 ] ; then
+		SERIAL_DEBUGGER_STATUS="$(echo $RES_TEMP | tail -l | cut -d \: -f6)"
+	elif [ $i -eq 7 ] ; then
+		MEMORY_STATUS="$(echo $RES_TEMP | tail -l | cut -d \: -f7)"
+	else
+		FLASH_STATUS="$(echo $RES_TEMP | tail -l | cut -d \: -f8)"
+	fi
+  done
+#echo $BBU_STATUS
+#echo $ALARM_STATUS
+#echo $NVRAM_STATUS
+#echo $SERIAL_DEBUGGER_STATUS
+#echo $MEMORY_STATUS
+#echo $FLASH_STATUS
+  if [ $BBU_STATUS == "Present" -a $ALARM_STATUS == "Present" -a $NVRAM_STATUS == "Present" -a $SERIAL_DEBUGGER_STATUS == "Present" -a $MEMORY_STATUS == "Present" -a $FLASH_STATUS == "Present" ] ; then
+	CTRLSTAT=Ok
+  fi
+  echo Controller Status=$CTRLSTAT
+
+  #WARNING need to disable the stderr redirection to null in check_mk script
+
+  #/usr/sbin/MegaCli -AdpBbuCmd -aAll -NoLog > $RAID 2>&1
+  CTRLBATINFO="$(/usr/sbin/MegaCli -AdpBbuCmd -aAll -NoLog < /dev/null | egrep "Battery State" | cut -d \: -f2 | cut -d " " -f2)"
+
+  #CTRLBATINFO="$(grep "Battery State" $RAID | cut -d\: -f2)"
+  #CTRLBATINFO=$(echo $CTRLBATINFO)
+  #[ "$CTRLBATINFO" = "Operational" ] && CTRLBATINFO=Ok
+  if [ $CTRLBATINFO == "Optimal" ] ; then
+	CTRLBATINFO=Ok
+  fi
+  echo Battery Status=$CTRLBATINFO
+
+  #/usr/sbin/MegaCli -LDInfo -Lall -aALL -NoLog > $RAID
+  LD_RES="$(/usr/sbin/MegaCli -LDInfo -Lall -aALL -NoLog < /dev/null | egrep "Virtual Drive:")"
+
+
+  let iLOGICALDEV=0
+  echo "$LD_RES" | while read DEVICE; do
+    if [[ $DEVICE =~ ^CacheCade\ Virtual\ Drive.*$ ]] ; then
+	# For CacheCade Virtual Drive
+	LD_RES_TEMP="$(/usr/sbin/MegaCli -LDInfo -Lall -aALL -NoLog < /dev/null | grep -A 4 "$DEVICE" )"
+	STATUS="$(echo "$LD_RES_TEMP" | tail -1 | cut -d\: -f2)"
+    else
+	# For Virtual Drive
+	LD_RES_TEMP="$(/usr/sbin/MegaCli -LDInfo -Lall -aALL -NoLog < /dev/null | grep -A 7 "$DEVICE" )"
+	STATUS="$(echo "$LD_RES_TEMP" | tail -1 | cut -d\: -f2)"
+    fi
+    # STATUS="$(grep -A 5 "$DEVICE" $RAID | tail -1 | cut -d\: -f2)"
+    STATUS=${STATUS:1}
+    [ "$STATUS" = "Optimal" ] && STATUS=Ok
+    echo Logical Drive $iLOGICALDEV=$STATUS
+    let iLOGICALDEV++
+  done
+
+
+  #/usr/sbin/MegaCli -PDList -aALL -NoLog > $RAID
+  PD_RES="$(/usr/sbin/MegaCli -PDList -aALL -NoLog < /dev/null | grep "Device Id")"
+
+  let iDEVICE=0
+  echo "$PD_RES" | while read DEVICE; do
+    PD_RES_TEMP="$(/usr/sbin/MegaCli -PDList -aALL -NoLog < /dev/null | grep -A 15 "$DEVICE")"
+    STATUS="$(echo "$PD_RES_TEMP" | tail -1 | cut -d\: -f2)"
+    STATUS=${STATUS:1}
+    [ "$STATUS" = "Online, Spun Up" ] && STATUS=Ok
+    echo Drive $iDEVICE=$STATUS
+    let iDEVICE++
+  done
+  #rm -f $RAID
+fi
