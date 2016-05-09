@@ -2,7 +2,7 @@
 
 ## Module
 ### hdarray
-Modify script hdarray for use with LSI 2960-8i with BBU (not include brands like DELL, HP, etc.)
+Modify script hdarray for use with general LSI 2960-8i with BBU (not include brands like DELL, HP, etc.) and using `MegaCli` management tool
 
 ## Preparation
 prepare "Unix agent" for run script module, follow this link:
