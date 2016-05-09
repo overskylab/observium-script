@@ -2,10 +2,10 @@
 
 ## Module
 ### hdarray
-Modify script hdarray for use with LSI 2960-8i with BBU (not brand such as DELL, HP, etc.)
+Modify script hdarray for use with LSI 2960-8i with BBU (not include brands like DELL, HP, etc.)
 
 ## Preparation
-prepare "Unix agent" for run script module, follow this url:
+prepare "Unix agent" for run script module, follow this link:
 
 [http://www.observium.org/docs/unix_agent/] (http://www.observium.org/docs/unix_agent/)
 
